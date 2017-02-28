@@ -16,6 +16,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
 
+import services.FtpService;
+
 /**
  * Configuration de l'application.
  * Declaration des classes de ressource REST.
@@ -31,7 +33,7 @@ public class Config {
 	 */
 	protected void addResources( List<Object> resources ) {
 		resources.add( new HelloWorldResource() );
-		// resources.add( new MaClasseDeResource() );
+		 resources.add( new FtpService() );
 	}
 	
 	/**
