@@ -52,4 +52,18 @@ public class FtpService {
 		
 	}
 	
+	@GET
+	@Path("/disconnect")
+	public String disconnect(){
+		if(ftpClient.isConnectedWithServer()){
+			if(ftpClient.disconnect()){
+				return "Disconnected";
+			} else {
+				return "Failed to disconnect";
+			}
+		} else {
+			return "You are already disconnected";
+		}
+	}
+	
 }

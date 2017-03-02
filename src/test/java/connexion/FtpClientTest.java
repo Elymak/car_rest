@@ -18,16 +18,17 @@ public class FtpClientTest {
 
 	@Test
 	public void testConnectToServer() throws IOException {
-		FtpClient ftpClient = new FtpClient();
 		String url = "127.0.0.1";
-		Integer port = 12345;
+		String port = "12345";
 		String user = "user";
 		String password = "password";
+		
+		FtpClient ftpClient = new FtpClient(url, port);
 		
 		DataOutputStream out = Mockito.mock(DataOutputStream.class);
 		BufferedReader buf = Mockito.mock(BufferedReader.class);
 		
-		boolean result = ftpClient.connectToServer(url, port, user, password);
+		boolean result = ftpClient.connectToServer(user, password);
 	}
 
 }
