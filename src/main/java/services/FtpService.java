@@ -52,4 +52,40 @@ public class FtpService {
 		
 	}
 	
+	/** 
+	 * sera appelé dans ftp client au lieu de l'url
+	 * 
+	 * */
+	@GET
+	@Path("/port")
+	@Produces("text/html")
+	public String port(){
+		if(ftpClient.isConnectedWithServer()){
+			if(ftpClient.port()){
+				return "Port has been configured";
+			} else {
+				return "Error happenned during PORT configuration";
+			}
+		} else {
+			return "Not connected with server, please try again";
+		}
+	}
+	
+	@GET
+	@Path("/disconnect")
+	@Produces("text/html")
+	public String disconnect(){
+		if(ftpClient.isConnectedWithServer()){
+			if(ftpClient.disconnect()){
+				return "Disconnected from ftp server";
+			} else {
+				return "Error happenned during deconnection";
+			}
+		} else {
+			return "You are already disconnected";
+		}
+	}
+	
+	
+	
 }

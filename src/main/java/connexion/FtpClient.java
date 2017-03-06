@@ -4,9 +4,11 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 
 import log.ConsoleLogger;
 import log.LogType;
@@ -19,9 +21,14 @@ public class FtpClient {
 	private BufferedReader buf;
 	
 	private boolean isConnectedWithServer;
+	private boolean passiveMode;
+	
+	private String addr;
+	private int port;
 	
 	public FtpClient(String url, String port) throws IOException {
 		this.isConnectedWithServer = false;
+		this.passiveMode = false;
 
 		this.ftp_socket = new ServerSocket(0);
 		this.commandes = new Socket(InetAddress.getByName(url), Integer.parseInt(port));
@@ -57,8 +64,6 @@ public class FtpClient {
 					ConsoleLogger.log(LogType.INFO, "Réponse du serveur : " + _230);
 
 					if ("230".equals(_230.substring(0, 3))) {
-						out.close();
-						buf.close();
 						return true;
 					} else {
 						out.close();
@@ -84,16 +89,20 @@ public class FtpClient {
 		
 		if (isConnectedWithServer) {
 			try {
+				ConsoleLogger.log(LogType.INFO, "Disconnecting...");
 				out.write("QUIT".getBytes());
+				out.write("\n".getBytes());
+				ConsoleLogger.log(LogType.INFO, "Checking disconnection");
 				String isLogout = buf.readLine();
-
-				out.close();
-				buf.close();
 
 				if ("221".equals(isLogout.substring(0, 3))) {
 					isConnectedWithServer = false;
+					out.close();
+					buf.close();
+					ConsoleLogger.log(LogType.INFO, "Disconnected");
 					return true;
 				} else {
+					
 					return false;
 				}
 
@@ -105,6 +114,51 @@ public class FtpClient {
 			return false;
 		}
 		
+	}
+	
+	public boolean port(){
+		if(isConnectedWithServer()){
+			Inet4Address addr;
+			try {
+				addr = (Inet4Address) InetAddress.getLocalHost();
+				String Ipv4 = addr.getHostAddress().replace(".", ",");
+				int port = ftp_socket.getLocalPort();
+				ConsoleLogger.log(LogType.INFO, "socket data : " + Ipv4 + "," + port );
+				
+				
+				out.write(("PORT " + Ipv4 + "," + port/256 + "," + port%256 + "\n").getBytes());
+				
+				String response = buf.readLine();
+				
+				if( "200".equals(response.substring(0, 3))){
+					passiveMode = false;
+					return true;
+				} else{
+					return false;
+				}
+				
+				
+			} catch (UnknownHostException e) {
+				ConsoleLogger.log(LogType.ERROR, "Cannot get localhost InetAddress");
+				return false;
+			} catch (IOException e) {
+				ConsoleLogger.log(LogType.ERROR, "Cannot send port command's datas to the ftp server");
+				return false;
+			}
+			
+		}
+		return false;
+	}
+	
+	
+	
+
+	public boolean isPassiveMode() {
+		return passiveMode;
+	}
+
+	public void setPassiveMode(boolean passiveMode) {
+		this.passiveMode = passiveMode;
 	}
 
 	public boolean isConnectedWithServer() {
