@@ -2,6 +2,9 @@ package connexion;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Inet4Address;
@@ -15,8 +18,8 @@ import log.LogType;
 
 public class FtpClient {
 
-	private ServerSocket ftp_socket;
-	private Socket commandes;
+	private ServerSocket flux_socket;
+	private Socket commandes_socket;
 	private DataOutputStream out;
 	private BufferedReader buf;
 	
@@ -30,10 +33,10 @@ public class FtpClient {
 		this.isConnectedWithServer = false;
 		this.passiveMode = false;
 
-		this.ftp_socket = new ServerSocket(0);
-		this.commandes = new Socket(InetAddress.getByName(url), Integer.parseInt(port));
-		this.out = new DataOutputStream(commandes.getOutputStream());
-		this.buf = new BufferedReader(new InputStreamReader(commandes.getInputStream()));
+		this.flux_socket = new ServerSocket(0);
+		this.commandes_socket = new Socket(InetAddress.getByName(url), Integer.parseInt(port));
+		this.out = new DataOutputStream(commandes_socket.getOutputStream());
+		this.buf = new BufferedReader(new InputStreamReader(commandes_socket.getInputStream()));
 		ConsoleLogger.log(LogType.INFO, "Connection acceptée avec le serveur");
 		String _220 = buf.readLine();
 		ConsoleLogger.log(LogType.INFO, "Réponse du serveur : " + _220);
@@ -122,7 +125,7 @@ public class FtpClient {
 			try {
 				addr = (Inet4Address) InetAddress.getLocalHost();
 				String Ipv4 = addr.getHostAddress().replace(".", ",");
-				int port = ftp_socket.getLocalPort();
+				int port = flux_socket.getLocalPort();
 				ConsoleLogger.log(LogType.INFO, "socket data : " + Ipv4 + "," + port );
 				
 				
@@ -150,7 +153,47 @@ public class FtpClient {
 		return false;
 	}
 	
-	
+	public boolean store(String name){
+		
+		/* flux du fichier */
+		File f = new File(name);
+		FileReader reader;
+		BufferedReader buf = null;
+		try {
+			reader = new FileReader(f);
+			buf = new BufferedReader(reader);
+
+			if(port()){
+				try {
+					out.write(("STOR " + name + "\n").getBytes());
+					try {
+						String string;
+						string = buf.readLine(); //warning, String s = buf.readLine() has no effect
+						Socket s = flux_socket.accept();
+						DataOutputStream flux_out = new DataOutputStream(s.getOutputStream());
+						
+						while (string != null && buf != null) {
+							flux_out.write((string+"\r\n").getBytes());
+							string = buf.readLine();
+						}
+						
+						flux_out.write("\n".getBytes());
+						flux_out.close();
+						
+						buf.close();
+						return true;
+
+					} catch (IOException e) {
+						return false;
+					}
+				} catch (IOException e) {
+				}
+			}
+		} catch (FileNotFoundException e) {
+			ConsoleLogger.log(LogType.ERROR, "File not found");
+		}
+		return false;
+	}
 	
 
 	public boolean isPassiveMode() {
@@ -167,6 +210,22 @@ public class FtpClient {
 
 	public void setConnectedWithServer(boolean isConnectedWithServer) {
 		this.isConnectedWithServer = isConnectedWithServer;
+	}
+
+	public String getAddr() {
+		return addr;
+	}
+
+	public void setAddr(String addr) {
+		this.addr = addr;
+	}
+
+	public int getPort() {
+		return port;
+	}
+
+	public void setPort(int port) {
+		this.port = port;
 	}
 	
 }
