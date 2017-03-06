@@ -52,6 +52,7 @@ public class FtpService {
 		
 	}
 	
+<<<<<<< HEAD
 	/** 
 	 * sera appelé dans ftp client au lieu de l'url
 	 * 
@@ -80,12 +81,25 @@ public class FtpService {
 				return "Disconnected from ftp server";
 			} else {
 				return "Error happenned during deconnection";
+=======
+	@GET
+	@Path("/disconnect")
+	public String disconnect(){
+		if(ftpClient.isConnectedWithServer()){
+			if(ftpClient.disconnect()){
+				return "Disconnected";
+			} else {
+				return "Failed to disconnect";
+>>>>>>> a1d7a2335412cbb96e4ed256175d8e865d0b4099
 			}
 		} else {
 			return "You are already disconnected";
 		}
 	}
 	
+<<<<<<< HEAD
 	
 	
+=======
+>>>>>>> a1d7a2335412cbb96e4ed256175d8e865d0b4099
 }
