@@ -32,7 +32,6 @@ public class Config {
 	 * Ajouter une ligne par classe de ressource REST.
 	 */
 	protected void addResources( List<Object> resources ) {
-		resources.add( new HelloWorldResource() );
 		 resources.add( new FtpService() );
 	}
 	
