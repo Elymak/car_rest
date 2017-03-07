@@ -119,6 +119,29 @@ public class FtpClient {
 		
 	}
 	
+	public String pwd(){
+		if(isConnectedWithServer){
+			try {
+				out.write("PWD".getBytes());
+				String res = buf.readLine();
+				
+				if("257 ".equals(res.substring(0, 4)))
+					return res.substring(4);
+				else
+					return "KO";
+			} catch (IOException e) {
+				ConsoleLogger.log(LogType.ERROR, "Cannot write PWD command");
+				return "KO";
+			}
+		} else {
+			return "KO not connected";
+		}
+	}
+	
+	public String list(String dir){
+		return "";
+	}
+	
 	public boolean port(){
 		if(isConnectedWithServer()){
 			Inet4Address addr;

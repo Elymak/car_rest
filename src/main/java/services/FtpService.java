@@ -3,6 +3,7 @@ package services;
 import java.io.IOException;
 
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -52,23 +53,32 @@ public class FtpService {
 		
 	}
 	
-	/** 
-	 * sera appelé dans ftp client au lieu de l'url
-	 * 
-	 * */
+	
 	@GET
-	@Path("/port")
-	@Produces("text/html")
-	public String port(){
+	@Path("/list")
+	public String list(){
 		if(ftpClient.isConnectedWithServer()){
-			if(ftpClient.port()){
-				return "Port has been configured";
-			} else {
-				return "Error happenned during PORT configuration";
-			}
+			String dir = ftpClient.pwd();
+			return ftpClient.list(dir);
 		} else {
-			return "Not connected with server, please try again";
+			return "KO : You are not connected with the FTP server";
 		}
+	}
+	
+	@POST
+	@Path("/store/{name}")
+	public String store(@PathParam("name") String name){
+		if(ftpClient.isConnectedWithServer()){
+			if(ftpClient.isPassiveMode()){
+				//TODO passive mode
+				return "KO need passive mode";
+			} else {
+				if(ftpClient.store(name)){
+					return "STORE OK";
+				}
+			}
+		}
+		return "KO";
 	}
 	
 	@GET
