@@ -56,10 +56,14 @@ public class FtpService {
 	
 	@GET
 	@Path("/list")
+	@Produces("text/html")
 	public String list(){
 		if(ftpClient.isConnectedWithServer()){
 			String dir = ftpClient.pwd();
-			return ftpClient.list(dir);
+			if(!"KO".equals(dir.substring(0, 2)))
+				return ftpClient.list(dir);
+			else
+				return "KO";
 		} else {
 			return "KO : You are not connected with the FTP server";
 		}
