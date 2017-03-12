@@ -13,10 +13,16 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.regex.Pattern;
 
 import log.ConsoleLogger;
 import log.LogType;
 
+/**
+ * Object permettant l'interaction entre un serveur FTP et un navigateur Web
+ * 
+ * @author Serial
+ */
 public class FtpClient {
 
 	private ServerSocket flux_socket;
@@ -31,6 +37,13 @@ public class FtpClient {
 	private String addr;
 	private int port;
 	
+	/**
+	 * Ce constructeur permet d'instancier un nouveau FtpClient en se connectant directement à un serveur FTP
+	 * 
+	 * @param url : addresse du serveur (ex : 127.0.0.1 ou ftp.univ-lille1.fr)
+	 * @param port : port du serveur
+	 * @throws IOException
+	 */
 	public FtpClient(String url, String port) throws IOException {
 		this.isConnectedWithServer = false;
 		this.passiveMode = false;
@@ -49,6 +62,13 @@ public class FtpClient {
 
 	}
 	
+	/**
+	 * Permet l'authentification d'un  utilisateur au serveur FTP 
+	 * 
+	 * @param user : nom d'utilisateur
+	 * @param password : mot de passe de l'utilisateur
+	 * @return true si login OK, false si erreurs ou mot de passe incorrect
+	 */
 	public boolean connectToServer(String user, String password) {
 
 		if (isConnectedWithServer) {
@@ -90,6 +110,11 @@ public class FtpClient {
 
 	}
 	
+	/**
+	 * Permet la déconnexion du serveur
+	 * 
+	 * @return true si déconnecté, false si erreurs ou déjà déconnecté
+	 */
 	public boolean disconnect(){
 		
 		if (isConnectedWithServer) {
@@ -121,6 +146,11 @@ public class FtpClient {
 		
 	}
 	
+	/**
+	 * Permet de savoir quel est le répertoire courant de l'utilisateur
+	 * 
+	 * @return le path du répertoire courant (/path/another_path)
+	 */
 	public String pwd(){
 		if(isConnectedWithServer){
 			try {
@@ -128,6 +158,7 @@ public class FtpClient {
 				String res = buf.readLine();
 				
 				if("257 ".equals(res.substring(0, 4))){
+					ConsoleLogger.log(LogType.INFO, res.substring(4));
 					return res.substring(4);
 				} else{
 					return "KO";
@@ -141,29 +172,52 @@ public class FtpClient {
 		}
 	}
 	
+	/**
+	 * Permet de lister un répertoire
+	 * 
+	 * @param dir : répertoire demandé;
+	 * @return le contenu du répertoire demandé, "Error happened during transfert" ou "Error during list" si erreur pendant le traitement
+	 */
 	public String list(String dir){
 		
 		try {
-			if(passiveMode){
-				pasv();
-			} else {
+			if(!pasv()){
+				out.write("LIST\n".getBytes());
+			}else{
 				port();
+				out.write("LIST\n".getBytes());
+				data_socket = flux_socket.accept();
 			}
-			out.write("LIST\n".getBytes());
-			Socket s = flux_socket.accept();
-			
-			BufferedReader flux_buffer = new BufferedReader(new InputStreamReader(s.getInputStream())); 
-			
-			String list = "";
-			String res = "";
-			while(list != null){
-				res += list + "\n";
+			if("150".equals(buf.readLine().substring(0, 3))){
+				BufferedReader flux_buffer = new BufferedReader(new InputStreamReader(data_socket.getInputStream())); 
+				
+				String list = flux_buffer.readLine();
+				String res = "<a href=\"/rest/tp2/ftp/cdup\">..</a><br />";
+				while(list != null){
+					if(list.charAt(0) == 'd'){
+						String[] dir1 = list.split(" ");
+						res+="<a href=\"/rest/tp2/ftp/cwd/"+ dir1[dir1.length-1] +"\" >"+list+"</a><br />";
+					}
+					else{
+						res += list + "<br />";
+					}
+					list = flux_buffer.readLine();
+				}
+				
+				flux_buffer.close();
+				data_socket.close();
+				
+				if("226".equals(buf.readLine().substring(0, 3))){
+					ConsoleLogger.log(LogType.INFO, "List Success");
+					return res;
+				} else {
+					return "Error happened during transfert";
+				}
+			} else {
+				return "Error during list";
 			}
 			
-			flux_buffer.close();
-			s.close();	
 			
-			return res;
 			
 		} catch (IOException e) {
 			ConsoleLogger.log(LogType.ERROR, "Cannot list " + dir);
@@ -171,6 +225,11 @@ public class FtpClient {
 		return "KO";
 	}
 	
+	/**
+	 * Permet de configurer le serveur en mode actif
+	 * 
+	 * @return
+	 */
 	public boolean port(){
 		if(isConnectedWithServer()){
 			Inet4Address addr;
@@ -208,14 +267,29 @@ public class FtpClient {
 		return false;
 	}
 	
+	/**
+	 * Permet de configurer le serveur en mode passif
+	 * 
+	 * @return
+	 */
 	public boolean pasv(){
 		if(isConnectedWithServer){
 			
 			try {
 				out.write("PASV\n".getBytes());
 				//TODO
+				String a = buf.readLine();
+				ConsoleLogger.log(LogType.INFO, "Reponse du serveur : " +a);
+				String infos[] = analyseAddress(a);
 				
-//				data_socket = new Socket(host, port);
+				String host = (infos[0] + "," + infos[1] + "," + infos[2] + "," + infos[3]).replace(",", ".");
+				int port = Integer.valueOf(infos[4])*256 + Integer.valueOf(infos[5]);
+				ConsoleLogger.log(LogType.INFO, "Connecting to : " + host + ":" + port +" ...");
+				
+				data_socket = new Socket(host, port);
+				
+				ConsoleLogger.log(LogType.INFO, "PASV command DONE");
+				passiveMode = true;
 				
 			} catch (IOException e) {
 				ConsoleLogger.log(LogType.ERROR, "Cannot send pasv command's to the ftp server");
@@ -227,6 +301,31 @@ public class FtpClient {
 		}
 	}
 	
+	/**
+	 * Permet d'analyser et de retourner les informations de connexion à une socket du serveur FTP
+	 * 
+	 * @param s : phrase à analyser
+	 * @return les informations de connexions (ex: "127,0,0,1,256,256")
+	 */
+	public static String[] analyseAddress(String s){
+		String[] a = s.split(",");
+		Pattern p = Pattern.compile("\\d{1,}+");
+		
+		while(!Pattern.matches("\\d{1,}+", a[0]))
+			a[0] = a[0].substring(1, a[0].length());
+		
+		while(!Pattern.matches("\\d{1,}+", a[5]))
+			a[5] = a[5].substring(0, a[0].length()-1);
+		
+		return a;
+	}
+	
+	/**
+	 * Permet l'upload d'un fichier sur le serveur FTP
+	 * 
+	 * @param name : le nom du fichier à upload
+	 * @return true si upload OK, false si erreurs
+	 */
 	public boolean store(String name){
 		
 		/* flux du fichier */
@@ -267,6 +366,27 @@ public class FtpClient {
 			ConsoleLogger.log(LogType.ERROR, "File not found");
 		}
 		return false;
+	}
+	
+	/**
+	 * Permet de descendre l'arborescence du serveur
+	 * 
+	 * @param dir : répertoire demandé
+	 * @return true si descente OK, false si erreurs ou pas de droits d'accès au répertoire
+	 */
+	public boolean cwd(String dir){
+		
+		try {
+			out.write(("CWD " + dir + "\n").getBytes());
+			
+			String _250 = buf.readLine();
+			ConsoleLogger.log(LogType.INFO, "CWD Reponse du serveur " + _250);
+			return "250".equals(_250.substring(0, 3));
+				
+		} catch (IOException e) {
+			ConsoleLogger.log(LogType.ERROR, "Cannot send CWD command");
+			return false;
+		}
 	}
 	
 

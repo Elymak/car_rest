@@ -30,5 +30,14 @@ public class FtpClientTest {
 		
 		boolean result = ftpClient.connectToServer(user, password);
 	}
+	
+	@Test
+	public void analyseTest(){
+		String test = "227 some string here (127,0,0,1,0,55)";
+		String[] expected = new String[]{"127","0","0","1","0","55"};
+		String[] result = FtpClient.analyseAddress(test);
+		assertArrayEquals(expected, result);
+		
+	}
 
 }
