@@ -15,6 +15,7 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.regex.Pattern;
 
+import exceptions.AccessDeniedException;
 import log.ConsoleLogger;
 import log.LogType;
 
@@ -38,7 +39,7 @@ public class FtpClient {
 	private int port;
 	
 	/**
-	 * Ce constructeur permet d'instancier un nouveau FtpClient en se connectant directement à un serveur FTP
+	 * Ce constructeur permet d'instancier un nouveau FtpClient en se connectant directement ï¿½ un serveur FTP
 	 * 
 	 * @param url : addresse du serveur (ex : 127.0.0.1 ou ftp.univ-lille1.fr)
 	 * @param port : port du serveur
@@ -111,9 +112,9 @@ public class FtpClient {
 	}
 	
 	/**
-	 * Permet la déconnexion du serveur
+	 * Permet la dï¿½connexion du serveur
 	 * 
-	 * @return true si déconnecté, false si erreurs ou déjà déconnecté
+	 * @return true si dï¿½connectï¿½, false si erreurs ou dï¿½jï¿½ dï¿½connectï¿½
 	 */
 	public boolean disconnect(){
 		
@@ -132,7 +133,7 @@ public class FtpClient {
 					ConsoleLogger.log(LogType.INFO, "Disconnected");
 					return true;
 				} else {
-					
+					buf.reset();
 					return false;
 				}
 
@@ -147,20 +148,24 @@ public class FtpClient {
 	}
 	
 	/**
-	 * Permet de savoir quel est le répertoire courant de l'utilisateur
+	 * Permet de savoir quel est le rï¿½pertoire courant de l'utilisateur
 	 * 
-	 * @return le path du répertoire courant (/path/another_path)
+	 * @return le path du rï¿½pertoire courant (/path/another_path)
 	 */
 	public String pwd(){
 		if(isConnectedWithServer){
 			try {
+				ConsoleLogger.log(LogType.INFO, "PWD");
 				out.write("PWD\n".getBytes());
 				String res = buf.readLine();
+				ConsoleLogger.log(LogType.INFO, "Reponse du serveur " + res);
 				
 				if("257 ".equals(res.substring(0, 4))){
 					ConsoleLogger.log(LogType.INFO, res.substring(4));
+					buf.reset();
 					return res.substring(4);
 				} else{
+					buf.reset();
 					return "KO";
 				}
 			} catch (IOException e) {
@@ -173,15 +178,16 @@ public class FtpClient {
 	}
 	
 	/**
-	 * Permet de lister un répertoire
+	 * Permet de lister le rï¿½pertoire courant
 	 * 
-	 * @param dir : répertoire demandé;
-	 * @return le contenu du répertoire demandé, "Error happened during transfert" ou "Error during list" si erreur pendant le traitement
+	 * @return le contenu du rï¿½pertoire courant, "Error happened during transfert" ou "Error during list" si erreur pendant le traitement
+	 * @throws AccessDeniedException 
 	 */
-	public String list(String dir){
+	public String list() throws AccessDeniedException{
 		
 		try {
-			if(!pasv()){
+			if(pasv()){
+				ConsoleLogger.log(LogType.INFO, "LIST");
 				out.write("LIST\n".getBytes());
 			}else{
 				port();
@@ -208,19 +214,19 @@ public class FtpClient {
 				data_socket.close();
 				
 				if("226".equals(buf.readLine().substring(0, 3))){
-					ConsoleLogger.log(LogType.INFO, "List Success");
+					ConsoleLogger.log(LogType.INFO, "List OK");
 					return res;
 				} else {
+					buf.reset();
 					return "Error happened during transfert";
 				}
 			} else {
+				buf.reset();
 				return "Error during list";
 			}
 			
-			
-			
 		} catch (IOException e) {
-			ConsoleLogger.log(LogType.ERROR, "Cannot list " + dir);
+			ConsoleLogger.log(LogType.ERROR, "Cannot list ");
 		}
 		return "KO";
 	}
@@ -237,9 +243,8 @@ public class FtpClient {
 				addr = (Inet4Address) InetAddress.getLocalHost();
 				String Ipv4 = addr.getHostAddress().replace(".", ",");
 				int port = flux_socket.getLocalPort();
-				ConsoleLogger.log(LogType.INFO, "socket data : " + Ipv4 + "," + port/256 + "," + port%256 );
-				
-				
+
+				ConsoleLogger.log(LogType.INFO, "PORT " + Ipv4 + "," + port/256 + "," + port%256);
 				out.write(("PORT " + Ipv4 + "," + port/256 + "," + port%256 + "\n").getBytes());
 				
 				String response = buf.readLine();
@@ -247,19 +252,21 @@ public class FtpClient {
 				
 				if( "200".equals(response.substring(0, 3))){
 					passiveMode = false;
-					ConsoleLogger.log(LogType.INFO, "PORT Successful");
+					ConsoleLogger.log(LogType.INFO, "PORT OK");
+					buf.reset();
 					return true;
 				} else{
-					ConsoleLogger.log(LogType.ERROR, "Failed to configure PORT");
+					ConsoleLogger.log(LogType.ERROR, "PORT KO");
+					buf.reset();
 					return false;
 				}
 				
 				
 			} catch (UnknownHostException e) {
-				ConsoleLogger.log(LogType.ERROR, "Cannot get localhost InetAddress");
+				ConsoleLogger.log(LogType.ERROR, "Cannot get Localhost InetAddress");
 				return false;
 			} catch (IOException e) {
-				ConsoleLogger.log(LogType.ERROR, "Cannot send port command's datas to the ftp server");
+				ConsoleLogger.log(LogType.ERROR, "Cannot send PORT command's datas to the FTP server");
 				return false;
 			}
 			
@@ -272,29 +279,38 @@ public class FtpClient {
 	 * 
 	 * @return
 	 */
-	public boolean pasv(){
+
+	public boolean pasv() throws AccessDeniedException{
 		if(isConnectedWithServer){
 			
 			try {
+				ConsoleLogger.log(LogType.INFO, "PASV");
 				out.write("PASV\n".getBytes());
-				//TODO
 				String a = buf.readLine();
-				ConsoleLogger.log(LogType.INFO, "Reponse du serveur : " +a);
-				String infos[] = analyseAddress(a);
-				
-				String host = (infos[0] + "," + infos[1] + "," + infos[2] + "," + infos[3]).replace(",", ".");
-				int port = Integer.valueOf(infos[4])*256 + Integer.valueOf(infos[5]);
-				ConsoleLogger.log(LogType.INFO, "Connecting to : " + host + ":" + port +" ...");
-				
-				data_socket = new Socket(host, port);
-				
-				ConsoleLogger.log(LogType.INFO, "PASV command DONE");
-				passiveMode = true;
+				if ("227".equals(a.substring(0, 3))) {
+					ConsoleLogger.log(LogType.INFO, "Reponse du serveur : " + a);
+					String infos[] = analyseAddress(a);
+					String host1 = infos[0] + "." + infos[1] + "." + infos[2] + "." + infos[3];
+					int port1 = Integer.valueOf(infos[4]) * 256 + Integer.valueOf(infos[5]);
+
+					ConsoleLogger.log(LogType.INFO, "Connecting to : " + host1 + ":" + port1 + " ...");
+					data_socket = new Socket(host1, port1);
+
+					ConsoleLogger.log(LogType.INFO, "PASV OK");
+					passiveMode = true;
+					return true;
+				} else {
+					ConsoleLogger.log(LogType.ERROR, "Access denied");
+					this.buf = new BufferedReader(new InputStreamReader(commandes_socket.getInputStream()));
+					//buf.reset();
+					//TODO
+					throw new AccessDeniedException();
+				}
 				
 			} catch (IOException e) {
 				ConsoleLogger.log(LogType.ERROR, "Cannot send pasv command's to the ftp server");
+				return false;
 			}
-			return false;
 			
 		} else {
 			return false;
@@ -302,20 +318,19 @@ public class FtpClient {
 	}
 	
 	/**
-	 * Permet d'analyser et de retourner les informations de connexion à une socket du serveur FTP
+	 * Permet d'analyser et de retourner les informations de connexion ï¿½ une socket du serveur FTP
 	 * 
-	 * @param s : phrase à analyser
+	 * @param s : phrase ï¿½ analyser
 	 * @return les informations de connexions (ex: "127,0,0,1,256,256")
 	 */
 	public static String[] analyseAddress(String s){
 		String[] a = s.split(",");
-		Pattern p = Pattern.compile("\\d{1,}+");
 		
 		while(!Pattern.matches("\\d{1,}+", a[0]))
 			a[0] = a[0].substring(1, a[0].length());
 		
 		while(!Pattern.matches("\\d{1,}+", a[5]))
-			a[5] = a[5].substring(0, a[0].length()-1);
+			a[5] = a[5].substring(0, a[5].length()-1);
 		
 		return a;
 	}
@@ -323,7 +338,7 @@ public class FtpClient {
 	/**
 	 * Permet l'upload d'un fichier sur le serveur FTP
 	 * 
-	 * @param name : le nom du fichier à upload
+	 * @param name : le nom du fichier ï¿½ upload
 	 * @return true si upload OK, false si erreurs
 	 */
 	public boolean store(String name){
@@ -331,29 +346,29 @@ public class FtpClient {
 		/* flux du fichier */
 		File f = new File(name);
 		FileReader reader;
-		BufferedReader buf = null;
+		BufferedReader file_buf = null;
 		try {
 			reader = new FileReader(f);
-			buf = new BufferedReader(reader);
+			file_buf = new BufferedReader(reader);
 
 			if(port()){
 				try {
 					out.write(("STOR " + name + "\n").getBytes());
 					try {
 						String string;
-						string = buf.readLine(); //warning, String s = buf.readLine() has no effect
+						string = file_buf.readLine(); //warning, String s = buf.readLine() has no effect
 						Socket s = flux_socket.accept();
 						DataOutputStream flux_out = new DataOutputStream(s.getOutputStream());
 						
-						while (string != null && buf != null) {
+						while (string != null && file_buf != null) {
 							flux_out.write((string+"\r\n").getBytes());
-							string = buf.readLine();
+							string = file_buf.readLine();
 						}
 						
 						flux_out.write("\n".getBytes());
 						flux_out.close();
 						
-						buf.close();
+						file_buf.close();
 						return true;
 
 					} catch (IOException e) {
@@ -362,6 +377,7 @@ public class FtpClient {
 				} catch (IOException e) {
 				}
 			}
+			//TODO PASV
 		} catch (FileNotFoundException e) {
 			ConsoleLogger.log(LogType.ERROR, "File not found");
 		}
@@ -371,16 +387,17 @@ public class FtpClient {
 	/**
 	 * Permet de descendre l'arborescence du serveur
 	 * 
-	 * @param dir : répertoire demandé
-	 * @return true si descente OK, false si erreurs ou pas de droits d'accès au répertoire
+	 * @param dir : rï¿½pertoire demandï¿½
+	 * @return true si descente OK, false si erreurs ou pas de droits d'accï¿½s au rï¿½pertoire
 	 */
 	public boolean cwd(String dir){
 		
 		try {
+			ConsoleLogger.log(LogType.INFO, "CWD " + dir);
 			out.write(("CWD " + dir + "\n").getBytes());
 			
 			String _250 = buf.readLine();
-			ConsoleLogger.log(LogType.INFO, "CWD Reponse du serveur " + _250);
+			ConsoleLogger.log(LogType.INFO, "Reponse du serveur " + _250);
 			return "250".equals(_250.substring(0, 3));
 				
 		} catch (IOException e) {

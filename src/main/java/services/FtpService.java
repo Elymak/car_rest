@@ -10,13 +10,14 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Response;
 
 import connexion.FtpClient;
+import exceptions.AccessDeniedException;
 import log.ConsoleLogger;
 import log.LogType;
 
 /**
  * 
- * Service principal des différentes commandes FTP
- * Les commandes s'appelent avec le pattern suivant : "/{commande}/{0 à X paramètres}"
+ * Service principal des diffï¿½rentes commandes FTP
+ * Les commandes s'appelent avec le pattern suivant : "/{commande}/{0 ï¿½ X paramï¿½tres}"
  * 
  * @author Serial
  *
@@ -29,14 +30,21 @@ public class FtpService {
 	 */
 	private FtpClient ftpClient;
 	
+	@GET
+	@Produces("text/html")
+	public String start(){
+		return "Please connect to a server";
+	}
+	
+	
 	/**
-	 * service qui permet la connection à un serveur ftp
-	 * en précisant dans l'url l'addresse du serveur (127.0.0.1 ou ftp.univ-lille1.fr par exemple)
-	 * et le port (21 par défaut)
+	 * service qui permet la connection ï¿½ un serveur ftp
+	 * en prï¿½cisant dans l'url l'addresse du serveur (127.0.0.1 ou ftp.univ-lille1.fr par exemple)
+	 * et le port (21 par dï¿½faut)
 	 * 
 	 * @param url
 	 * @param port
-	 * @return OK si connecté, KO sinon
+	 * @return OK si connectï¿½, KO sinon
 	 */
 	@GET
 	@Path("/connect/{url}/{port}")
@@ -60,15 +68,15 @@ public class FtpService {
 	/**
 	 * 
 	 * service qui permet l'authentification d'un utilisateur
-	 * à l'actuel serveur connecté
+	 * ï¿½ l'actuel serveur connectï¿½
 	 * le service demande le nom d'utilisateur et le mot de passe
 	 * 
 	 * 
 	 * @param user
 	 * @param password
-	 * @return l'affichage du répertoire courant de l'utilisateur si login ok,
+	 * @return l'affichage du rï¿½pertoire courant de l'utilisateur si login ok,
 	 * "Failed to Login" si mot de passe incorrect,
-	 * "Not connected with server, please try again" si on est connecté à aucun serveur 
+	 * "Not connected with server, please try again" si on est connectï¿½ ï¿½ aucun serveur 
 	 */
 	@GET
 	@Path("/login/{user}/{password}")
@@ -87,18 +95,18 @@ public class FtpService {
 	}
 	
 	/**
-	 * Liste le répertoire courtant de l'utilisateur
-	 * @return le répertoire courant si OK,
+	 * Liste le rï¿½pertoire courtant de l'utilisateur
+	 * @return le rï¿½pertoire courant si OK,
 	 * "KO" si l'utilsateur n'a pas les droits
-	 * "KO : You are not connected with the FTP server" si pas connecté au serveur
+	 * "KO : You are not connected with the FTP server" si pas connectï¿½ au serveur
 	 */
-	public String list(){
-		if(ftpClient.isConnectedWithServer()){
-			String dir = ftpClient.pwd();
-			if(!"KO".equals(dir.substring(0, 2)))
-				return ftpClient.list(dir);
-			else
-				return "KO";
+	public String list() {
+		if (ftpClient.isConnectedWithServer()) {
+			try {
+				return ftpClient.list();
+			} catch (AccessDeniedException e) {
+				return "<h2 style=\"color:red;\">ACCESS DENIED</h2><br /><a href=\"/rest/tp2/ftp/cdup\">Go Back</a>";
+			}
 		} else {
 			return "KO : You are not connected with the FTP server";
 		}
@@ -107,18 +115,21 @@ public class FtpService {
 	/**
 	 * Service qui permet de descendre dans l'arborescence du serveur
 	 * @param dir
-	 * @return affiche le nouveau répertoire courant, "KO" si pas les permissions pour 
-	 * naviguer dans le répertoire demandé, "You are not connected with the server" si déconnecté du serveur
+	 * @return affiche le nouveau rï¿½pertoire courant, "KO" si pas les permissions pour 
+	 * naviguer dans le rï¿½pertoire demandï¿½, "You are not connected with the server" si dï¿½connectï¿½ du serveur
 	 */
 	@Path("/cwd/{dir}")
 	@GET
 	@Produces("text/html")
 	public String cwd(@PathParam("dir") String dir){
+		
+		
 		if(ftpClient.isConnectedWithServer()){
+			ConsoleLogger.log(LogType.INFO, "Current dir is " + ftpClient.pwd());
 			if(ftpClient.cwd(dir)){
 				return list();
 			} else {
-				return "KO";
+				return "KO, Cannot Go down in hierarchy";
 			}
 		} else {
 			return "You are not connected with the server";
@@ -162,7 +173,7 @@ public class FtpService {
 	 * Service qui permet la deconnexion du serveur
 	 * 
 	 * @return "Disconnected from ftp server" si OK, "Error happenned during deconnection" si KO,
-	 *  "You are already disconnected" si déjà déconnecté
+	 *  "You are already disconnected" si dï¿½jï¿½ dï¿½connectï¿½
 	 */
 	@GET
 	@Path("/disconnect")
