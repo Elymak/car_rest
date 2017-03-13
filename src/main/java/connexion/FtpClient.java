@@ -209,7 +209,8 @@ public class FtpClient {
 						res+="<a href=\"/rest/tp2/ftp/cwd/"+ dir1[dir1.length-1] +"\" >"+list+"</a><br />";
 					}
 					else{
-						res += list + "<form action=\"/rest/tp2/ftp/retr\" method=\"get\"><input type=\"submit\" value=\"DOWNLOAD\" ></form><br />";
+						String[] dir1 = list.split(" ");
+						res += list + "<a href=\"/rest/tp2/ftp/retr/"+dir1[dir1.length-1]+"\">DOWNLOAD</a><br />";
 					}
 					list = flux_buffer.readLine();
 				}
@@ -388,7 +389,7 @@ public class FtpClient {
 		return false;
 	}
 	
-	public File retrieve(String name) throws FileTransfertException{
+	public File retrieve(String name) throws FileTransfertException, AccessDeniedException{
 		File f = new File(name);
 		FileReader reader;
 		BufferedReader file_buf = null;
@@ -396,6 +397,8 @@ public class FtpClient {
 		PrintWriter pw = null;
 		
 		try {
+			
+			pasv();
 			
 			reader = new FileReader(f);
 			file_buf = new BufferedReader(reader);
@@ -432,6 +435,7 @@ public class FtpClient {
 			
 		} catch (IOException e) {
 			//TODO Consolelogger
+			ConsoleLogger.log(LogType.ERROR, "Erreur while creating file");
 		}
 		throw new FileTransfertException();
 	}

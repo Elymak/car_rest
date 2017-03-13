@@ -174,13 +174,15 @@ public class FtpService {
 	}
 	
 	@GET
-	@Path("/retr/")
+	@Path("/retr/{name}")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
-	public StreamingOutput retrieve(){
+	public StreamingOutput retrieve(@PathParam("name") String name){
+		ConsoleLogger.log(LogType.INFO, "patate " + name);
+		
 		if(ftpClient.isConnectedWithServer()){
 			File file1;
 			try {
-				file1 = ftpClient.retrieve("");
+				file1 = ftpClient.retrieve(name);
 				
 				return new StreamingOutput() {
 					
@@ -195,12 +197,17 @@ public class FtpService {
 							byte[] buffer2 = IOUtils.toByteArray(fizip);
 							bus.write(buffer2);
 						} catch (Exception e) {
-							e.printStackTrace();
+							//TODO
+							ConsoleLogger.log(LogType.INFO, "patate2");
 						}
 					}
 				};
 			} catch (FileTransfertException e1) {
 				// TODO Auto-generated catch block
+				ConsoleLogger.log(LogType.INFO, "patate3");
+			} catch (AccessDeniedException e1) {
+				// TODO Auto-generated catch block
+				ConsoleLogger.log(LogType.INFO, "patate4");
 			}
 		}
 		return null;
