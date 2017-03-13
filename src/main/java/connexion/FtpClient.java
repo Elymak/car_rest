@@ -218,6 +218,12 @@ public class FtpClient {
 				flux_buffer.close();
 				data_socket.close();
 				
+//				res += "<br/><form action=\"/rest/tp2/ftp/store\" method=\"post\"><input type=\"submit\"></form>";
+				res += 	"<form action=\"/rest/tp2/ftp/store\" method=\"post\" enctype=\"multipart/form-data\">"
+						+ 	"<p>Select a file in this directory : <input type=\"file\" name=\"file\" size=\"45\" /></p>"
+						+ 	"<input type=\"submit\" value=\"Upload It\" />"
+						+ "</form>";
+				
 				if("226".equals(buf.readLine().substring(0, 3))){
 					ConsoleLogger.log(LogType.INFO, "List OK");
 					return res;
@@ -346,10 +352,9 @@ public class FtpClient {
 	 * @param name : le nom du fichier � upload
 	 * @return true si upload OK, false si erreurs
 	 */
-	public boolean store(String name){
+	public boolean store(File f){
 		
 		/* flux du fichier */
-		File f = new File(name);
 		FileReader reader;
 		BufferedReader file_buf = null;
 		try {
@@ -358,7 +363,7 @@ public class FtpClient {
 
 			if(port()){
 				try {
-					out.write(("STOR " + name + "\n").getBytes());
+					out.write(("STOR " + f.getName() + "\n").getBytes());
 					try {
 						String string;
 						string = file_buf.readLine(); //warning, String s = buf.readLine() has no effect

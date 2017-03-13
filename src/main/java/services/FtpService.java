@@ -4,9 +4,11 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 
 import javax.ws.rs.Consumes;
+import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -14,9 +16,13 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.commons.io.IOUtils;
+
+import com.sun.jersey.core.header.FormDataContentDisposition;
+import com.sun.jersey.multipart.FormDataParam;
 
 import log.ConsoleLogger;
 import log.LogType;
@@ -165,12 +171,17 @@ public class FtpService {
 	 */
 	@POST
 	@Path("/store")
-	@Consumes(MediaType.APPLICATION_OCTET_STREAM)
-	public String store(){
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	public Response store(@FormDataParam("file") InputStream uploadedInputStream,
+            			@FormDataParam("file") FormDataContentDisposition fileDetail){
 		if(ftpClient.isConnectedWithServer()){
 			//TODO ftpClient.store()
+			ConsoleLogger.log(LogType.INFO, "Store service");
+			File f = new File("toto");
+			
+			ftpClient.store(f);
 		}
-		return "KO";
+		return Response.ok("KO").build();
 	}
 	
 	@GET
