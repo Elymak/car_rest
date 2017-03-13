@@ -1,13 +1,16 @@
 package connexion;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.Console;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -16,6 +19,7 @@ import java.net.UnknownHostException;
 import java.util.regex.Pattern;
 
 import exceptions.AccessDeniedException;
+import exceptions.FileTransfertException;
 import log.ConsoleLogger;
 import log.LogType;
 
@@ -205,7 +209,7 @@ public class FtpClient {
 						res+="<a href=\"/rest/tp2/ftp/cwd/"+ dir1[dir1.length-1] +"\" >"+list+"</a><br />";
 					}
 					else{
-						res += list + "<br />";
+						res += list + "<form action=\"/rest/tp2/ftp/retr\" method=\"get\"><input type=\"submit\" value=\"DOWNLOAD\" ></form><br />";
 					}
 					list = flux_buffer.readLine();
 				}
@@ -382,6 +386,54 @@ public class FtpClient {
 			ConsoleLogger.log(LogType.ERROR, "File not found");
 		}
 		return false;
+	}
+	
+	public File retrieve(String name) throws FileTransfertException{
+		File f = new File(name);
+		FileReader reader;
+		BufferedReader file_buf = null;
+		BufferedReader socket_input_flux = null;
+		PrintWriter pw = null;
+		
+		try {
+			
+			reader = new FileReader(f);
+			file_buf = new BufferedReader(reader);
+			socket_input_flux = new BufferedReader(new InputStreamReader(data_socket.getInputStream()));
+			pw = new PrintWriter(new BufferedWriter(new FileWriter(f)));
+			
+			ConsoleLogger.log(LogType.INFO, "RETR " + name);
+			out.write(("RETR " + name + "\n").getBytes());
+			
+			String res = buf.readLine();
+			ConsoleLogger.log(LogType.INFO, "Reponse du serveur " + res);
+			
+			if("125".equals(res.substring(0, 3))){
+				 String tmp = socket_input_flux.readLine();
+
+				while (tmp != null) {
+					pw.println(tmp);
+					tmp = socket_input_flux.readLine();
+				}
+				
+				file_buf.close();
+				pw.close();
+				
+				res = buf.readLine();
+				if("226".equals(res.substring(0, 3)))
+					return f;
+				else
+					throw new FileTransfertException();
+			} else {
+				file_buf.close();
+				pw.close();
+				throw new FileTransfertException();
+			}
+			
+		} catch (IOException e) {
+			//TODO Consolelogger
+		}
+		throw new FileTransfertException();
 	}
 	
 	/**

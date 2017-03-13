@@ -1,18 +1,28 @@
 package services;
 
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.core.Response;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.StreamingOutput;
 
-import connexion.FtpClient;
-import exceptions.AccessDeniedException;
+import org.apache.commons.io.IOUtils;
+
 import log.ConsoleLogger;
 import log.LogType;
+import connexion.FtpClient;
+import exceptions.AccessDeniedException;
+import exceptions.FileTransfertException;
 
 /**
  * 
@@ -154,19 +164,46 @@ public class FtpService {
 	 * @return
 	 */
 	@POST
-	@Path("/store/{name}")
-	public String store(@PathParam("name") String name){
+	@Path("/store")
+	@Consumes(MediaType.APPLICATION_OCTET_STREAM)
+	public String store(){
 		if(ftpClient.isConnectedWithServer()){
-			if(ftpClient.isPassiveMode()){
-				//TODO passive mode
-				return "KO need passive mode";
-			} else {
-				if(ftpClient.store(name)){
-					return "STORE OK";
-				}
-			}
+			//TODO ftpClient.store()
 		}
 		return "KO";
+	}
+	
+	@GET
+	@Path("/retr/")
+	@Produces(MediaType.APPLICATION_OCTET_STREAM)
+	public StreamingOutput retrieve(){
+		if(ftpClient.isConnectedWithServer()){
+			File file1;
+			try {
+				file1 = ftpClient.retrieve("");
+				
+				return new StreamingOutput() {
+					
+					@Override
+					public void write(OutputStream arg0) throws IOException, WebApplicationException {
+						BufferedOutputStream bus = new BufferedOutputStream(arg0);
+						try {
+							String home = System.getProperty("user.home");
+							File file = new File(home + "/Downloads/" + file1.getName());
+							file1.renameTo(file);
+							FileInputStream fizip = new FileInputStream(file1);
+							byte[] buffer2 = IOUtils.toByteArray(fizip);
+							bus.write(buffer2);
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+					}
+				};
+			} catch (FileTransfertException e1) {
+				// TODO Auto-generated catch block
+			}
+		}
+		return null;
 	}
 	
 	/**
