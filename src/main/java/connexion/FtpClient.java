@@ -391,19 +391,16 @@ public class FtpClient {
 	
 	public File retrieve(String name) throws FileTransfertException, AccessDeniedException{
 		File f = new File(name);
-		FileReader reader;
-		BufferedReader file_buf = null;
 		BufferedReader socket_input_flux = null;
-		PrintWriter pw = null;
+//		PrintWriter pw = null;
+		FileWriter fw = null;
 		
 		try {
-			
 			pasv();
 			
-			reader = new FileReader(f);
-			file_buf = new BufferedReader(reader);
+//			pw = new PrintWriter (new BufferedWriter (new FileWriter (f)));
+			fw = new FileWriter(f);
 			socket_input_flux = new BufferedReader(new InputStreamReader(data_socket.getInputStream()));
-			pw = new PrintWriter(new BufferedWriter(new FileWriter(f)));
 			
 			ConsoleLogger.log(LogType.INFO, "RETR " + name);
 			out.write(("RETR " + name + "\n").getBytes());
@@ -415,12 +412,13 @@ public class FtpClient {
 				 String tmp = socket_input_flux.readLine();
 
 				while (tmp != null) {
-					pw.println(tmp);
+//					pw.println(tmp);
+					fw.write(tmp+"\r\n");
 					tmp = socket_input_flux.readLine();
 				}
 				
-				file_buf.close();
-				pw.close();
+//				pw.close();
+				fw.close();
 				
 				res = buf.readLine();
 				if("226".equals(res.substring(0, 3)))
@@ -428,8 +426,8 @@ public class FtpClient {
 				else
 					throw new FileTransfertException();
 			} else {
-				file_buf.close();
-				pw.close();
+//				pw.close();
+				fw.close();
 				throw new FileTransfertException();
 			}
 			

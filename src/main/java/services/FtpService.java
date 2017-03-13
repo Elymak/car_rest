@@ -191,11 +191,15 @@ public class FtpService {
 						BufferedOutputStream bus = new BufferedOutputStream(arg0);
 						try {
 							String home = System.getProperty("user.home");
-							File file = new File(home + "/Downloads/" + file1.getName());
-							file1.renameTo(file);
+							if(file1.renameTo(new File(home + "/Downloads/" + file1.getName())))
+								ConsoleLogger.log(LogType.INFO, "Changing path OK");
+							else
+								ConsoleLogger.log(LogType.ERROR, "Bad Changing path");
 							FileInputStream fizip = new FileInputStream(file1);
 							byte[] buffer2 = IOUtils.toByteArray(fizip);
 							bus.write(buffer2);
+							
+							bus.close();
 						} catch (Exception e) {
 							//TODO
 							ConsoleLogger.log(LogType.INFO, "patate2");
