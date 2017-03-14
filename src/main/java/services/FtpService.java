@@ -3,12 +3,14 @@ package services;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
+import java.util.Map;
 
 import javax.ws.rs.Consumes;
-import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -16,16 +18,17 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
-import org.apache.commons.io.IOUtils;
-
-import com.sun.jersey.core.header.FormDataContentDisposition;
-import com.sun.jersey.multipart.FormDataParam;
-
 import log.ConsoleLogger;
 import log.LogType;
+
+import org.apache.commons.io.IOUtils;
+import org.jboss.resteasy.plugins.providers.multipart.InputPart;
+import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
+
 import connexion.FtpClient;
 import exceptions.AccessDeniedException;
 import exceptions.FileTransfertException;
@@ -167,23 +170,94 @@ public class FtpService {
 	 * Service qui permet d'upload un fichier sur le serveur
 	 * 
 	 * @param name = le nom du fichier
-	 * @return
+	 * @return Response
 	 */
 	@POST
 	@Path("/store")
-	@Consumes(MediaType.MULTIPART_FORM_DATA)
-	public Response store(@FormDataParam("file") InputStream uploadedInputStream,
-            			@FormDataParam("file") FormDataContentDisposition fileDetail){
-		if(ftpClient.isConnectedWithServer()){
-			//TODO ftpClient.store()
-			ConsoleLogger.log(LogType.INFO, "Store service");
-			File f = new File("toto");
+	@Consumes("multipart/form-data")
+	public Response store(MultipartFormDataInput input) {
+		if (ftpClient.isConnectedWithServer()) {
+		
+			String fileName = "";
+
+			Map<String, List<InputPart>> uploadForm = input.getFormDataMap();
+			List<InputPart> inputParts = uploadForm.get("fileForm");
+
+			for (InputPart inputPart : inputParts) {
+
+			 try {
+
+				MultivaluedMap<String, String> header = inputPart.getHeaders();
+				fileName = getFileName(header);
+				InputStream inputStream = inputPart.getBody(InputStream.class,null);
+				byte [] bytes = IOUtils.toByteArray(inputStream);
+				File f = writeFile(bytes,fileName);
+				
+				try {
+					if(ftpClient.store(f)){
+						return Response.ok("OK").build();
+					}
+				} catch (AccessDeniedException e) {
+					// TODO consolelogerer
+				}
+				list();
+
+			  } catch (IOException e) {
+				e.printStackTrace();
+			  }
+
+			}
 			
-			ftpClient.store(f);
 		}
 		return Response.ok("KO").build();
 	}
 	
+	/**
+	 * 
+	 * Methode qui permet de récupérer le nom d'un fichier récupéré du formulaire d'envoi
+	 * @param header
+	 * @return
+	 */
+	private String getFileName(MultivaluedMap<String, String> header) {
+
+		String[] contentDisposition = header.getFirst("Content-Disposition").split(";");
+
+		for (String filename : contentDisposition) {
+			if ((filename.trim().startsWith("filename"))) {
+
+				String[] name = filename.split("=");
+
+				String finalFileName = name[1].trim().replaceAll("\"", "");
+				return finalFileName;
+			}
+		}
+		return "unknown";
+	}
+	
+	/**
+	 * Methode qui créer un fichier récupéré depuis un formulaire
+	 * @param content
+	 * @param filename
+	 * @return
+	 * @throws IOException
+	 */
+	private File writeFile(byte[] content, String filename) throws IOException {
+
+		File file = new File(filename);
+
+		FileOutputStream fop = new FileOutputStream(file);
+		fop.write(content);
+		fop.flush();
+		fop.close();
+
+		return file;
+	}
+	
+	/**
+	 * service qui permet le téléchargement d'un fichier texte depuis un répertoire distant
+	 * @param name
+	 * @return
+	 */
 	@GET
 	@Path("/retr/{name}")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)

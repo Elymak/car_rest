@@ -220,7 +220,7 @@ public class FtpClient {
 				
 //				res += "<br/><form action=\"/rest/tp2/ftp/store\" method=\"post\"><input type=\"submit\"></form>";
 				res += 	"<form action=\"/rest/tp2/ftp/store\" method=\"post\" enctype=\"multipart/form-data\">"
-						+ 	"<p>Select a file in this directory : <input type=\"file\" name=\"file\" size=\"45\" /></p>"
+						+ 	"<p>Select a file in this directory : <input type=\"file\" name=\"fileForm\" /></p>"
 						+ 	"<input type=\"submit\" value=\"Upload It\" />"
 						+ "</form>";
 				
@@ -290,7 +290,6 @@ public class FtpClient {
 	 * 
 	 * @return
 	 */
-
 	public boolean pasv() throws AccessDeniedException{
 		if(isConnectedWithServer){
 			
@@ -351,8 +350,9 @@ public class FtpClient {
 	 * 
 	 * @param name : le nom du fichier ï¿½ upload
 	 * @return true si upload OK, false si erreurs
+	 * @throws AccessDeniedException 
 	 */
-	public boolean store(File f){
+	public boolean store(File f) throws AccessDeniedException{
 		
 		/* flux du fichier */
 		FileReader reader;
@@ -361,39 +361,51 @@ public class FtpClient {
 			reader = new FileReader(f);
 			file_buf = new BufferedReader(reader);
 
-			if(port()){
-				try {
-					out.write(("STOR " + f.getName() + "\n").getBytes());
+			pasv();
+			
+			try {
+				ConsoleLogger.log(LogType.INFO, "STOR " + f.getName());
+				out.write(("STOR " + f.getName() + "\n").getBytes());
+				
+				String res = buf.readLine(); //125 => start to transfert
+				if ("125".equals(res.substring(0, 3))) {
+
 					try {
 						String string;
-						string = file_buf.readLine(); //warning, String s = buf.readLine() has no effect
-						Socket s = flux_socket.accept();
-						DataOutputStream flux_out = new DataOutputStream(s.getOutputStream());
-						
+						string = file_buf.readLine();
+						DataOutputStream flux_out = new DataOutputStream(data_socket.getOutputStream());
+
 						while (string != null && file_buf != null) {
-							flux_out.write((string+"\r\n").getBytes());
+							flux_out.write((string + "\r\n").getBytes());
 							string = file_buf.readLine();
 						}
-						
+
 						flux_out.write("\n".getBytes());
 						flux_out.close();
-						
+
 						file_buf.close();
 						return true;
 
 					} catch (IOException e) {
 						return false;
 					}
-				} catch (IOException e) {
 				}
+			} catch (IOException e) {
 			}
-			//TODO PASV
+			
 		} catch (FileNotFoundException e) {
 			ConsoleLogger.log(LogType.ERROR, "File not found");
 		}
 		return false;
 	}
 	
+	/**
+	 * Methode qui appel le serveur FTP pour le téléchargement d'un fichier depuis sun répertoire distant
+	 * @param name le nom du fichier
+	 * @return le fichier téléchargé
+	 * @throws FileTransfertException
+	 * @throws AccessDeniedException
+	 */
 	public File retrieve(String name) throws FileTransfertException, AccessDeniedException{
 		File f = new File(name);
 		BufferedReader socket_input_flux = null;
@@ -466,6 +478,8 @@ public class FtpClient {
 	}
 	
 
+	// GETTERS AND SETTERS
+	
 	public boolean isPassiveMode() {
 		return passiveMode;
 	}
